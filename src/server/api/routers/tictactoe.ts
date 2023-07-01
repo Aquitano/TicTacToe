@@ -1,3 +1,5 @@
+import { type Move } from "@prisma/client";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { prisma } from "../../db";
@@ -13,7 +15,12 @@ type Game = {
   }[];
 };
 
-async function fetchGame(gameId: string) {
+/**
+ * Fetches a game from the database.
+ * @param {string} gameId - The ID of the game to fetch.
+ * @returns {Promise<Game | null>} The fetched game.
+ */
+async function fetchGame(gameId: string): Promise<Game | null> {
   return await prisma.game.findUnique({
     where: { id: gameId },
     select: {
@@ -31,8 +38,23 @@ async function fetchGame(gameId: string) {
   });
 }
 
-async function fetchFullGame(gameId: string) {
-  return await prisma.game.findUnique({
+/**
+ * Fetches a game from the database, including moves.
+ * @param {string} gameId - The ID of the game to fetch.
+ * @returns {Promise<Game & {moves: Array<{playerID: string, position: number, id: string, createdAt: Date}>} | null>} The fetched game.
+ */
+async function fetchFullGame(gameId: string): Promise<
+  | (Game & {
+      moves: Array<{
+        playerID: string;
+        position: number;
+        id: string;
+        createdAt: Date;
+      }>;
+    })
+  | null
+> {
+  return prisma.game.findUnique({
     where: { id: gameId },
     select: {
       id: true,
@@ -61,16 +83,92 @@ function isGameReadyToStart(game: Game) {
   return game.players.length === 2 && !game.turn;
 }
 
-function selectRandomPlayer(players: any[]): string {
+/**
+ * Selects a random player from the given array.
+ * @param {Array<{id: string, name: string|null}>} players - The array of players.
+ * @returns {string | undefined} The ID of the selected player.
+ */
+function selectRandomPlayer(
+  players: Array<{ id: string; name: string | null }>
+): string | undefined {
   const turn = Math.floor(Math.random() * 2);
   return players[turn]?.id;
 }
 
-function validateTurn(game: Game, userId: string) {
-  if (game.turn !== userId) throw new Error("Not your turn");
+/**
+ * Validates if it's the given user's turn in the game.
+ * @param {Game} game - The game to check.
+ * @param {string} userId - The ID of the user to check.
+ * @throws {TRPCError} If it's not the user's turn.
+ */
+function validateTurn(
+  game: Game & { moves: Move[] },
+  userId: string,
+  input: { position: number; gameId: string }
+) {
+  if (game.turn !== userId)
+    throw new TRPCError({ code: "FORBIDDEN", message: "Not your turn" });
+
+  game.moves.forEach((move) => {
+    if (move.position === input.position)
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Position already taken",
+      });
+  });
 }
 
-async function createMove(input: any, userId: string) {
+/**
+ * Validates if the game is over.
+ * @param {Game} game - The game to check.
+ * @returns {string | undefined} The ID of the winner.
+ */
+function checkWinner(game: Game & { moves: Move[] }): string | undefined {
+  const winningCombinations = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6],
+  ];
+
+  // Create a game board
+  const board = Array(9).fill(null);
+  game.moves.forEach((move) => {
+    board[move.position] = move.playerID;
+  });
+
+  // Check for a winner
+  for (const combination of winningCombinations) {
+    const [a, b, c] = combination as [number, number, number];
+
+    // Guard clause to skip this iteration if a, b, or c are not valid indices
+    if (a >= board.length || b >= board.length || c >= board.length) {
+      continue;
+    }
+
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return board[a];
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Creates a move in the game.
+ * @param {{gameId: string, position: number}} input - The input data for the move.
+ * @param {string} userId - The ID of the user making the move.
+ * @returns {Promise<any>} The created move.
+ */
+async function createMove(
+  input: { gameId: string; position: number },
+  userId: string
+): Promise<Move> {
   return await prisma.move.create({
     data: {
       game: {
@@ -84,9 +182,14 @@ async function createMove(input: any, userId: string) {
   });
 }
 
+/**
+ * Changes the turn in the game.
+ * @param {Game} game - The game to update.
+ * @param {string} gameId - The ID of the game.
+ */
 async function changeTurn(game: Game, gameId: string) {
   const nextPlayerId = game.players.find(
-    (player: any) => player.id !== game.turn
+    (player: { id: string; name: string | null }) => player.id !== game.turn
   )?.id;
   await prisma.game.update({
     where: { id: gameId },
@@ -94,8 +197,14 @@ async function changeTurn(game: Game, gameId: string) {
   });
 }
 
+/**
+ * Validates if the game has capacity for more players.
+ * @param {Game} game - The game to check.
+ * @throws {TRPCError} If the game is full.
+ */
 function validateGameCapacity(game: Game) {
-  if (game.players.length >= 2) throw new Error("Game is full");
+  if (game.players.length >= 2)
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Game is full" });
 }
 
 export const ticTacToeRouter = createTRPCRouter({
@@ -103,7 +212,8 @@ export const ticTacToeRouter = createTRPCRouter({
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const game = await fetchGame(input.gameId);
-      if (!game) throw new Error("Game not found");
+      if (!game)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Game not found" });
 
       validateGameCapacity(game);
 
@@ -151,12 +261,16 @@ export const ticTacToeRouter = createTRPCRouter({
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input }) => {
       const game = await fetchGame(input.gameId);
-      if (!game) throw new Error("Game not found");
+      if (!game)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Game not found" });
 
       if (isGameReadyToStart(game)) {
         const nextTurn = selectRandomPlayer(game.players);
         if (!nextTurn)
-          throw new Error(`Player not found in game ${input.gameId}`);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Player not found in game ${input.gameId}`,
+          });
 
         // Start game
         await prisma.game.update({
@@ -178,7 +292,8 @@ export const ticTacToeRouter = createTRPCRouter({
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input }) => {
       const game = await fetchFullGame(input.gameId);
-      if (!game) throw new Error("Game not found");
+      if (!game)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Game not found" });
 
       return {
         game,
@@ -218,11 +333,39 @@ export const ticTacToeRouter = createTRPCRouter({
           players: true,
         },
       });
-      if (!game) throw new Error("Game not found");
+      if (!game)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Game not found" });
 
-      validateTurn(game, ctx.session.user.id);
+      if (game.winner)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Game is already finished",
+        });
+
+      validateTurn(game, ctx.session.user.id, input);
 
       const move = await createMove(input, ctx.session.user.id);
+
+      const updatedGame = {
+        ...game,
+        moves: [
+          ...game.moves,
+          { playerID: ctx.session.user.id, position: input.position },
+        ],
+      } as Game & { moves: Move[] };
+
+      const winner = checkWinner(updatedGame);
+      if (winner) {
+        await prisma.game.update({
+          where: {
+            id: input.gameId,
+          },
+          data: {
+            winner,
+            turn: undefined,
+          },
+        });
+      }
 
       await changeTurn(game, input.gameId);
 
@@ -230,4 +373,35 @@ export const ticTacToeRouter = createTRPCRouter({
         move,
       };
     }),
+
+  getOpenGames: protectedProcedure.query(async () => {
+    const games = await prisma.game.findMany({
+      where: {
+        winner: null,
+        players: {
+          some: {
+            id: {
+              not: undefined,
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        players: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    console.log(games);
+
+    // One user in the game, no winner
+    return {
+      games: games.filter((game) => game.players.length === 1),
+    };
+  }),
 });
