@@ -2,10 +2,12 @@ import { Separator } from "@/components/separator";
 import { api } from "@/utils/api";
 import { signIn, signOut, useSession } from "next-auth/react";
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { Suspense, lazy, useRef, useState } from "react";
-const OpenGames = lazy(() => import("@/components/OpenGames"));
+const OpenGames = lazy(() => import("@/components/openGames"));
 
 export default function Home() {
+  const router = useRouter();
   const { data: sessionData } = useSession({
     required: true,
   });
@@ -22,7 +24,8 @@ export default function Home() {
     if (game === null) throw new Error("Error joining game");
 
     // Redirect to game page
-    window.location.href = `/game/${gameId}`;
+    await router.prefetch(`/game/${gameId}`);
+    await router.push(`/game/${gameId}`);
   };
 
   const createGame = api.game.createGame.useMutation();
@@ -34,7 +37,8 @@ export default function Home() {
     const gameId = game.id;
 
     // Redirect to game page
-    window.location.href = `/game/${gameId}`;
+    await router.prefetch(`/game/${gameId}`);
+    await router.push(`/game/${gameId}`);
   };
 
   return (
