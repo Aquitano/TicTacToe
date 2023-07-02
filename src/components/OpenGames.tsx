@@ -12,19 +12,6 @@ const OpenGames = ({
 }) => {
   const { data: openGames } = api.game.getOpenGames.useQuery();
 
-  // const openGames: Game[] = [
-  //   {
-  //     game: {
-  //       id: "some-game-id",
-  //     },
-  //   },
-  //   {
-  //     game: {
-  //       id: "some-game-id2",
-  //     },
-  //   },
-  // ];
-
   return (
     <>
       <button
@@ -41,7 +28,7 @@ const OpenGames = ({
           <button
             key={game.id}
             className="rounded-full bg-white/10 px-10 py-3 font-semibold text-white no-underline transition hover:bg-white/20"
-            onClick={async () => await void handleJoinGame(game.id)}
+            onClick={() => void handleJoinGame(game.id)}
           >
             Join Game {game.id}
           </button>
