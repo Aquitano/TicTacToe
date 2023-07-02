@@ -1,7 +1,7 @@
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { type Move } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { prisma } from "../../db";
 
 type Game = {

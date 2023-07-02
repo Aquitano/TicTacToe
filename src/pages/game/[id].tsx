@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/skeleton";
 import { useToast } from "@/components/use-toast";
 import { api } from "@/utils/api";
 import { type GetStaticProps, type NextPage } from "next";
+import { type Session } from "next-auth";
 import { useSession } from "next-auth/react";
 import Head from "next/head";
 import Link from "next/link";
@@ -18,12 +19,10 @@ const FETCH_INTERVAL = 3000;
 const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
   const { toast } = useToast();
   const [board, setBoard] = useState<string[]>(Array(BOARD_SIZE).fill(""));
-  const [currentMove, setCurrentMove] = useState(0);
   const [lastMove, setLastMove] = useState<Date | null>(null);
   const [myTurn, setMyTurn] = useState<boolean>(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
-
   const [moveHistory, setMoveHistory] = useState<
     Array<{ player: string; position: number; time: Date }>
   >([]);
@@ -48,7 +47,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
       enabled: winner !== null,
     }
   );
-  const { data: info } = api.game.getGame.useQuery(
+  const { data: gameStatus } = api.game.getGame.useQuery(
     {
       gameId,
     },
@@ -57,7 +56,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
       enabled: !gameStarted && winner === null,
     }
   );
-  const { data: game, refetch } = api.game.getFullGame.useQuery(
+  const { data: fullGame, refetch } = api.game.getFullGame.useQuery(
     { gameId },
     {
       refetchInterval: FETCH_INTERVAL,
@@ -68,6 +67,15 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
     onError: handleError,
   });
 
+  useEffect(() => {
+    // Reset the board
+    setBoard(Array(BOARD_SIZE).fill(""));
+    setMoveHistory([]);
+    setLastMove(null);
+
+    void refetch();
+  }, [moveError, refetch]);
+
   const handleMove = useCallback(
     (position: number) => {
       if (sessionData?.user?.id === undefined)
@@ -76,7 +84,6 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
       if (!myTurn) return;
       if (board[position] !== "") return;
 
-      const oldBoard = [...board];
       setMyTurn(false);
       setBoard((prevBoard) => {
         const newBoard = [...prevBoard];
@@ -91,14 +98,9 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         position,
       });
 
-      if (moveError) {
-        console.error("LOL");
-        setBoard(oldBoard);
-      }
-
       void refetch();
     },
-    [board, gameId, makeMove, moveError, myTurn, refetch, sessionData?.user?.id]
+    [board, gameId, makeMove, myTurn, refetch, sessionData?.user?.id]
   );
   const handleGameEnd = (winnerId: string) => {
     setWinner(winnerId);
@@ -119,29 +121,29 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
   };
 
   useEffect(() => {
-    if (!info) return;
+    if (!gameStatus) return;
     // Check if the game has started
-    if (info?.game.turn === null) return;
+    if (gameStatus?.game.turn === null) return;
 
     console.log("Game started");
     setGameStarted(true);
 
     // Check if the game has ended
-    if (info?.game.winner !== null) return;
+    if (gameStatus?.game.winner !== null) return;
 
-    setMyTurn(info?.game.turn === sessionData?.user?.id);
-  }, [info, sessionData]);
+    setMyTurn(gameStatus?.game.turn === sessionData?.user?.id);
+  }, [gameStatus, sessionData]);
 
   useEffect(() => {
-    if (!game) return;
-    if (game.game.winner !== null) handleGameEnd(game.game.winner);
+    if (!fullGame) return;
+    if (fullGame.game.winner !== null) handleGameEnd(fullGame.game.winner);
 
     const newBoard = [...board];
     const newMoveHistory = [...moveHistory];
     let newLastMove: Date | null = null;
     let changesDetected = false;
 
-    game?.game.moves.forEach((move) => {
+    fullGame?.game.moves.forEach((move) => {
       // Guard clause for invalid moves
       if (move.position < 0 || move.position > MAX_POSITION) return;
 
@@ -153,7 +155,6 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
       const symbol = move.playerID === sessionData?.user.id ? "X" : "O";
       newBoard[move.position] = symbol;
 
-      setCurrentMove(currentMove + 1);
       newMoveHistory.push({
         player: move.playerID,
         position: move.position,
@@ -170,7 +171,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
 
     console.log(newMoveHistory);
 
-    setMyTurn(game.game.turn === sessionData?.user?.id);
+    setMyTurn(fullGame.game.turn === sessionData?.user?.id);
 
     // Guard clause for no changes detected
     if (!changesDetected) return;
@@ -183,21 +184,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
     void refetch();
 
     console.log(newBoard);
-  }, [lastMove, game, sessionData, refetch]);
-
-  const history = moveHistory.map((_, index) => {
-    let description;
-    if (index > 0) {
-      description = "Go to move #" + String(index + 1);
-    } else {
-      description = "Go to game start";
-    }
-    return (
-      <li key={"move-history-" + String(index)}>
-        <Button onClick={() => jumpTo(index)}>{description}</Button>
-      </li>
-    );
-  });
+  }, [lastMove, fullGame, sessionData, refetch]);
 
   return (
     <>
@@ -252,26 +239,14 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
                         ))}
                     </div>
                   ) : (
-                    <div className="-mb-2 flex flex-wrap justify-center gap-2">
-                      {board.map((cell, i) => (
-                        <div
-                          id={String(i)}
-                          className="mb-4 flex h-20 w-20 items-center justify-center rounded-xl border-2 border-white bg-transparent bg-white bg-opacity-0 duration-300 hover:bg-opacity-25"
-                          key={"cell" + String(i)}
-                          onClick={() => {
-                            handleMove(i);
-                          }}
-                        >
-                          {cell}
-                        </div>
-                      ))}
-                    </div>
+                    <Board board={board} handleMove={handleMove} />
                   )}
                 </div>
-                <div className="move-history">
-                  <h2>Move History</h2>
-                  <ol>{history}</ol>
-                </div>
+                <MoveHistory
+                  history={moveHistory}
+                  setBoard={setBoard}
+                  sessionData={sessionData}
+                />
               </div>
             </div>
             <Separator className="mt-16" />
@@ -286,6 +261,79 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         </div>
       </main>
     </>
+  );
+};
+
+const Board = ({
+  board,
+  handleMove,
+}: {
+  board: string[];
+  handleMove: (position: number) => void;
+}) => (
+  <div className="-mb-2 flex flex-wrap justify-center gap-2">
+    {board.map((cell, i) => (
+      <div
+        id={String(i)}
+        className="mb-4 flex h-20 w-20 items-center justify-center rounded-xl border-2 border-white bg-transparent bg-white bg-opacity-0 duration-300 hover:bg-opacity-25"
+        key={"cell" + String(i)}
+        onClick={() => {
+          handleMove(i);
+        }}
+      >
+        {cell}
+      </div>
+    ))}
+  </div>
+);
+
+const MoveHistory = ({
+  history,
+  setBoard,
+  sessionData,
+}: {
+  history: {
+    player: string;
+    position: number;
+    time: Date;
+  }[];
+  setBoard: (board: string[]) => void;
+  sessionData: Session | null;
+}) => {
+  function jumpTo(moveNumber: number) {
+    // Create a new empty board
+    const newBoard = Array(BOARD_SIZE).fill("") as string[];
+
+    // Apply each move up to the selected move to the new board
+    for (let i = 0; i <= moveNumber; i++) {
+      const move = history[i];
+      if (move === undefined) break;
+      newBoard[move.position] =
+        move.player === sessionData?.user?.id ? "X" : "O";
+    }
+
+    // Set the state of the board and the current move
+    setBoard(newBoard);
+  }
+  return (
+    <div className="move-history">
+      <h2>Move History</h2>
+      <ol>
+        {history.map((_, index) => {
+          let description;
+          if (index > 0) {
+            description = "Go to move #" + String(index + 1);
+          } else {
+            description = "Go to game start";
+          }
+          return (
+            <li key={"move-history-" + String(index)}>
+              <Button onClick={() => jumpTo(index)}>{description}</Button>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 };
 
