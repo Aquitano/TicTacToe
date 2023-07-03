@@ -1,10 +1,14 @@
-import { Separator } from "@/components/separator";
-import { api } from "@/utils/api";
-import { signIn, signOut, useSession } from "next-auth/react";
-import Head from "next/head";
-import { useRouter } from "next/router";
-import { Suspense, lazy, useRef, useState } from "react";
-const OpenGames = lazy(() => import("@/components/openGames"));
+import AuthShowcase from '@/components/authShowcase';
+import { Separator } from '@/components/separator';
+import { api } from '@/utils/api';
+import { useSession } from 'next-auth/react';
+import dynamic from 'next/dynamic';
+import Head from 'next/head';
+import { useRouter } from 'next/router';
+import { useRef, useState } from 'react';
+const OpenGames = dynamic(() => import('@/components/openGames'), {
+  loading: () => <p>Loading...</p>,
+});
 
 export default function Home() {
   const router = useRouter();
@@ -17,11 +21,11 @@ export default function Home() {
   const joinGame = api.game.joinGame.useMutation();
   const handleJoinGame = async (gameId: string) => {
     // TODO: join game
-    confirm("Join game " + gameId);
+    confirm('Join game ' + gameId);
 
     const { game } = await joinGame.mutateAsync({ gameId });
 
-    if (game === null) throw new Error("Error joining game");
+    if (game === null) throw new Error('Error joining game');
 
     // Redirect to game page
     await router.prefetch(`/game/${gameId}`);
@@ -31,7 +35,7 @@ export default function Home() {
   const createGame = api.game.createGame.useMutation();
   const handleCreateGame = async () => {
     if (sessionData?.user?.id === undefined)
-      throw new Error("Session user id is undefined");
+      throw new Error('Session user id is undefined');
 
     const { game } = await createGame.mutateAsync();
     const gameId = game.id;
@@ -62,7 +66,7 @@ export default function Home() {
 
             <button
               className="rounded-full bg-white/10 px-12 py-3 font-semibold text-white no-underline transition hover:bg-white/20"
-              onClick={() => void handleJoinGame(input.current?.value ?? "")}
+              onClick={() => void handleJoinGame(input.current?.value ?? '')}
             >
               Join Game
             </button>
@@ -75,12 +79,10 @@ export default function Home() {
             </button>
             <br />
             {showOpenGames ? (
-              <Suspense fallback={<div>Loading...</div>}>
-                <OpenGames
-                  handleJoinGame={handleJoinGame}
-                  setOpen={setShowOpenGames}
-                />
-              </Suspense>
+              <OpenGames
+                handleJoinGame={handleJoinGame}
+                setOpen={setShowOpenGames}
+              />
             ) : (
               <button
                 className="rounded-full bg-white/10 px-10 py-3 font-semibold text-white no-underline transition hover:bg-white/20"
@@ -95,29 +97,5 @@ export default function Home() {
         </div>
       </main>
     </>
-  );
-}
-
-function AuthShowcase() {
-  const { data: sessionData } = useSession();
-
-  const { data: secretMessage } = api.example.getSecretMessage.useQuery(
-    undefined, // no input
-    { enabled: sessionData?.user !== undefined }
-  );
-
-  return (
-    <div className="flex flex-col items-center justify-center gap-4">
-      <p className="text-center text-2xl text-white">
-        {sessionData && <span>Logged in as {sessionData.user?.name}</span>}
-        {secretMessage && <span> - {secretMessage}</span>}
-      </p>
-      <button
-        className="rounded-full bg-white/10 px-10 py-3 font-semibold text-white no-underline transition hover:bg-white/20"
-        onClick={sessionData ? () => void signOut() : () => void signIn()}
-      >
-        {sessionData ? "Sign out" : "Sign in"}
-      </button>
-    </div>
   );
 }

@@ -1,16 +1,19 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import Board from "@/components/board";
-import MoveHistory from "@/components/moveHistory";
-import { Separator } from "@/components/separator";
-import { Skeleton } from "@/components/skeleton";
-import { useToast } from "@/components/use-toast";
-import { api } from "@/utils/api";
-import { type GetStaticProps, type NextPage } from "next";
-import { useSession } from "next-auth/react";
-import Head from "next/head";
-import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import MoveHistory from '@/components/moveHistory';
+import { Separator } from '@/components/separator';
+import { Skeleton } from '@/components/skeleton';
+import { useToast } from '@/components/use-toast';
+import { api } from '@/utils/api';
+import { type GetStaticProps, type NextPage } from 'next';
+import { useSession } from 'next-auth/react';
+import dynamic from 'next/dynamic';
+import Head from 'next/head';
+import Link from 'next/link';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+const Board = dynamic(() => import('@/components/board'), {
+  loading: () => <p>Loading...</p>,
+});
 
 const BOARD_SIZE = 9;
 const MAX_POSITION = 8;
@@ -18,7 +21,7 @@ const FETCH_INTERVAL = 1000;
 
 const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
   const { toast } = useToast();
-  const [board, setBoard] = useState<string[]>(Array(BOARD_SIZE).fill(""));
+  const [board, setBoard] = useState<string[]>(Array(BOARD_SIZE).fill(''));
   const [lastMove, setLastMove] = useState<Date | null>(null);
   const [myTurn, setMyTurn] = useState<boolean>(false);
   const [winner, setWinner] = useState<string | null>(null);
@@ -26,14 +29,15 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
   const [moveHistory, setMoveHistory] = useState<
     Array<{ player: string; position: number; time: Date }>
   >([]);
+  const [winningText, setWinningText] = useState<string>('');
   const boardRef = useRef(board);
   const moveHistoryRef = useRef(moveHistory);
 
   const handleError = (error: { message: string }) => {
     toast({
-      title: "Uh oh! Something went wrong.",
+      title: 'Uh oh! Something went wrong.',
       description: error.message,
-      variant: "destructive",
+      variant: 'destructive',
     });
     void refetch();
   };
@@ -43,11 +47,11 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
   });
   const { data: winnerInfo } = api.user.getUserById.useQuery(
     {
-      id: winner ?? "",
+      id: winner ?? '',
     },
     {
       enabled: winner !== null,
-    }
+    },
   );
   const { data: gameStatus } = api.game.getGame.useQuery(
     {
@@ -56,14 +60,14 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
     {
       refetchInterval: FETCH_INTERVAL,
       enabled: !gameStarted && winner === null,
-    }
+    },
   );
   const { data: fullGame, refetch } = api.game.getFullGame.useQuery(
     { gameId },
     {
       refetchInterval: FETCH_INTERVAL,
       enabled: gameStarted && winner === null,
-    }
+    },
   );
   const { mutate: makeMove, error: moveError } = api.game.makeMove.useMutation({
     onError: handleError,
@@ -71,7 +75,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
 
   useEffect(() => {
     // Reset the board
-    setBoard(Array(BOARD_SIZE).fill(""));
+    setBoard(Array(BOARD_SIZE).fill(''));
     setMoveHistory([]);
     setLastMove(null);
 
@@ -81,48 +85,57 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
   const handleMove = useCallback(
     (position: number) => {
       if (sessionData?.user?.id === undefined)
-        throw new Error("Session user id is undefined");
+        throw new Error('Session user id is undefined');
 
       if (!myTurn) return;
-      if (board[position] !== "") return;
-
-      setMyTurn(false);
-      setBoard((prevBoard) => {
-        const newBoard = [...prevBoard];
-
-        newBoard[position] = "X";
-
-        return newBoard;
-      });
+      if (board[position] !== '') return;
 
       makeMove({
         gameId,
         position,
       });
 
-      void refetch();
+      setMyTurn(false);
+      setBoard((prevBoard) => {
+        const newBoard = [...prevBoard];
+
+        newBoard[position] = 'X';
+
+        return newBoard;
+      });
     },
-    [board, gameId, makeMove, myTurn, refetch, sessionData?.user?.id]
+    [board, gameId, makeMove, myTurn, sessionData?.user?.id],
   );
   const handleGameEnd = useCallback(
-    (winnerId: string) => {
+    (winnerId: string, status: 'draw' | 'win') => {
       setWinner(winnerId);
-      if (winnerId === sessionData?.user?.id)
+      if (status === 'draw') {
+        setWinningText("It's a draw!");
         toast({
-          title: "Game over!",
-          description: `You won!`,
+          title: 'Game over!',
+          description: `It's a draw!`,
         });
-      else {
-        toast({
-          title: "Game over!",
-          description: `You lost!`,
-          variant: "destructive",
-        });
+      } else {
+        setWinner(winnerId);
+        if (winnerId === sessionData?.user?.id) {
+          setWinningText('You won!');
+          toast({
+            title: 'Game over!',
+            description: `You won!`,
+          });
+        } else {
+          setWinningText('You lost!');
+          toast({
+            title: 'Game over!',
+            description: `You lost!`,
+            variant: 'destructive',
+          });
+        }
       }
 
       setMyTurn(false);
     },
-    [sessionData?.user?.id, toast]
+    [sessionData?.user?.id, toast],
   );
 
   useEffect(() => {
@@ -130,7 +143,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
     // Check if the game has started
     if (gameStatus?.game.turn === null) return;
 
-    console.log("Game started");
+    console.log('Game started');
     setGameStarted(true);
 
     // Check if the game has ended
@@ -156,7 +169,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         return;
 
       // Update the board
-      const symbol = move.playerID === sessionData?.user.id ? "X" : "O";
+      const symbol = move.playerID === sessionData?.user.id ? 'X' : 'O';
       newBoard[move.position] = symbol;
 
       newMoveHistory.push({
@@ -174,7 +187,10 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
     });
 
     setMyTurn(fullGame.game.turn === sessionData?.user?.id);
-    if (fullGame.game.winner !== null) handleGameEnd(fullGame.game.winner);
+    if (fullGame.game.winner !== null)
+      handleGameEnd(fullGame.game.winner, 'win');
+    else if (fullGame.game.moves.length === BOARD_SIZE)
+      handleGameEnd('', 'draw');
 
     // Guard clause for no changes detected
     if (!changesDetected) return;
@@ -185,8 +201,6 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
     if (newLastMove !== null) setLastMove(newLastMove);
 
     void refetch();
-
-    console.log(newBoard);
   }, [lastMove, fullGame, sessionData, refetch, handleGameEnd]);
 
   boardRef.current = board;
@@ -214,35 +228,18 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
             )}
             {winnerInfo && (
               <p className="text-lg font-bold tracking-tight text-white sm:text-xl">
-                {winnerInfo.user?.id === sessionData?.user?.id
-                  ? "You won!"
-                  : String(winnerInfo?.user?.name) + " won!"}
+                {winningText}
               </p>
             )}
 
-            {myTurn && (
-              <button
-                onClick={() => {
-                  handleMove(0);
-                }}
-              >
-                Make Move
-              </button>
-            )}
+            <p className={`text-white ${!myTurn ? 'invisible' : ''}`}>
+              Make Move
+            </p>
             <div className="flex h-full max-w-xs flex-col content-center justify-center">
-              <div className="self-center ">
+              <div className="self-center">
                 <div className="max-w-xs text-3xl">
                   {!gameStarted ? (
-                    <div className="-mb-2 flex flex-wrap justify-center gap-2">
-                      {Array(9)
-                        .fill("")
-                        .map((_, i) => (
-                          <Skeleton
-                            key={"board-skeleton" + String(i)}
-                            className="mb-4 h-20 w-20 rounded-xl opacity-70"
-                          />
-                        ))}
-                    </div>
+                    <GridSkeleton />
                   ) : (
                     <Board board={board} handleMove={handleMove} />
                   )}
@@ -262,7 +259,6 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
             >
               Go back to the lobby
             </Link>
-            {/* <p className="text-yellow-500">{JSON.stringify(info)}</p> */}
           </div>
         </div>
       </main>
@@ -270,10 +266,24 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
   );
 };
 
+// eslint-disable-next-line react/display-name
+const GridSkeleton = memo(() => (
+  <div className="grid grid-cols-3 gap-4">
+    {Array(9)
+      .fill('')
+      .map((_, i) => (
+        <Skeleton
+          key={'board-skeleton' + String(i)}
+          className="mb-4 h-20 w-20 rounded-xl opacity-70"
+        />
+      ))}
+  </div>
+));
+
 export const getStaticProps: GetStaticProps = (context) => {
   const gameId = context.params?.id;
 
-  if (typeof gameId !== "string") return { notFound: true };
+  if (typeof gameId !== 'string') return { notFound: true };
 
   return {
     props: {
@@ -283,7 +293,7 @@ export const getStaticProps: GetStaticProps = (context) => {
 };
 
 export const getStaticPaths = () => {
-  return { paths: [], fallback: "blocking" };
+  return { paths: [], fallback: 'blocking' };
 };
 
 export default GamePage;

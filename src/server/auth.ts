@@ -1,29 +1,29 @@
-import { env } from "@/env";
-import { prisma } from "@/server/db";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { type GetServerSidePropsContext } from "next";
+import { env } from '@/env';
+import { prisma } from '@/server/db';
+import { PrismaAdapter } from '@next-auth/prisma-adapter';
+import { type GetServerSidePropsContext } from 'next';
 import {
   getServerSession,
   type DefaultSession,
   type NextAuthOptions,
-} from "next-auth";
-import DiscordProvider from "next-auth/providers/discord";
-import GitHubProvider from "next-auth/providers/github";
-import GoogleProvider from "next-auth/providers/google";
+} from 'next-auth';
+import DiscordProvider from 'next-auth/providers/discord';
+import GitHubProvider from 'next-auth/providers/github';
+import GoogleProvider from 'next-auth/providers/google';
 
 /**
- * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
+ * Module augmentation for `next-auth` types. Allows to add custom properties to the `session`
  * object and keep type safety.
  *
  * @see https://next-auth.js.org/getting-started/typescript#module-augmentation
  */
-declare module "next-auth" {
+declare module 'next-auth' {
   interface Session extends DefaultSession {
     user: {
       id: string;
       // ...other properties
       // role: UserRole;
-    } & DefaultSession["user"];
+    } & DefaultSession['user'];
   }
 }
 
@@ -75,8 +75,8 @@ export const authOptions: NextAuthOptions = {
  * @see https://next-auth.js.org/configuration/nextjs
  */
 export const getServerAuthSession = (ctx: {
-  req: GetServerSidePropsContext["req"];
-  res: GetServerSidePropsContext["res"];
+  req: GetServerSidePropsContext['req'];
+  res: GetServerSidePropsContext['res'];
 }) => {
   return getServerSession(ctx.req, ctx.res, authOptions);
 };

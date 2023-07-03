@@ -1,4 +1,4 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic",
-    "cSpell.words": ["aquitano", "tictactoe", "Tictactoe"]
+  "java.compile.nullAnalysis.mode": "automatic",
+  "cSpell.words": ["aquitano", "clsx", "tictactoe", "Tictactoe"]
 }
