@@ -1,8 +1,8 @@
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { type Move } from "@prisma/client";
-import { TRPCError } from "@trpc/server";
-import { z } from "zod";
-import { prisma } from "../../db";
+import { createTRPCRouter, protectedProcedure } from '@/server/api/trpc';
+import { type Move } from '@prisma/client';
+import { TRPCError } from '@trpc/server';
+import { z } from 'zod';
+import { prisma } from '../../db';
 
 type Game = {
   id: string;
@@ -89,7 +89,7 @@ function isGameReadyToStart(game: Game) {
  * @returns {string | undefined} The ID of the selected player.
  */
 function selectRandomPlayer(
-  players: Array<{ id: string; name: string | null }>
+  players: Array<{ id: string; name: string | null }>,
 ): string | undefined {
   const turn = Math.floor(Math.random() * 2);
   return players[turn]?.id;
@@ -104,16 +104,16 @@ function selectRandomPlayer(
 function validateTurn(
   game: Game & { moves: Move[] },
   userId: string,
-  input: { position: number; gameId: string }
+  input: { position: number; gameId: string },
 ) {
   if (game.turn !== userId)
-    throw new TRPCError({ code: "FORBIDDEN", message: "Not your turn" });
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Not your turn' });
 
   game.moves.forEach((move) => {
     if (move.position === input.position)
       throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Position already taken",
+        code: 'BAD_REQUEST',
+        message: 'Position already taken',
       });
   });
 }
@@ -167,7 +167,7 @@ function checkWinner(game: Game & { moves: Move[] }): string | undefined {
  */
 async function createMove(
   input: { gameId: string; position: number },
-  userId: string
+  userId: string,
 ): Promise<Move> {
   return await prisma.move.create({
     data: {
@@ -189,7 +189,7 @@ async function createMove(
  */
 async function changeTurn(game: Game, gameId: string) {
   const nextPlayerId = game.players.find(
-    (player: { id: string; name: string | null }) => player.id !== game.turn
+    (player: { id: string; name: string | null }) => player.id !== game.turn,
   )?.id;
   await prisma.game.update({
     where: { id: gameId },
@@ -204,7 +204,7 @@ async function changeTurn(game: Game, gameId: string) {
  */
 function validateGameCapacity(game: Game) {
   if (game.players.length >= 2)
-    throw new TRPCError({ code: "BAD_REQUEST", message: "Game is full" });
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Game is full' });
 }
 
 export const ticTacToeRouter = createTRPCRouter({
@@ -213,7 +213,7 @@ export const ticTacToeRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       const game = await fetchGame(input.gameId);
       if (!game)
-        throw new TRPCError({ code: "NOT_FOUND", message: "Game not found" });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Game not found' });
 
       validateGameCapacity(game);
 
@@ -239,36 +239,43 @@ export const ticTacToeRouter = createTRPCRouter({
       };
     }),
 
-  createGame: protectedProcedure.mutation(async ({ ctx }) => {
-    return {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-      game: await prisma.game.create({
-        data: {
-          players: {
-            connect: {
-              id: ctx.session.user.id,
-            },
-          },
-        },
-        select: {
-          id: true,
-        },
+  createGame: protectedProcedure
+    .input(
+      z.object({
+        type: z.enum(['AI', 'PVP']),
       }),
-    };
-  }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      return {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        game: await prisma.game.create({
+          data: {
+            players: {
+              connect: {
+                id: ctx.session.user.id,
+              },
+            },
+            type: input.type,
+          },
+          select: {
+            id: true,
+          },
+        }),
+      };
+    }),
 
   getGame: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input }) => {
       const game = await fetchGame(input.gameId);
       if (!game)
-        throw new TRPCError({ code: "NOT_FOUND", message: "Game not found" });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Game not found' });
 
       if (isGameReadyToStart(game)) {
         const nextTurn = selectRandomPlayer(game.players);
         if (!nextTurn)
           throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
+            code: 'INTERNAL_SERVER_ERROR',
             message: `Player not found in game ${input.gameId}`,
           });
 
@@ -293,7 +300,7 @@ export const ticTacToeRouter = createTRPCRouter({
     .query(async ({ input }) => {
       const game = await fetchFullGame(input.gameId);
       if (!game)
-        throw new TRPCError({ code: "NOT_FOUND", message: "Game not found" });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Game not found' });
 
       return {
         game,
@@ -321,7 +328,7 @@ export const ticTacToeRouter = createTRPCRouter({
       z.object({
         gameId: z.string(),
         position: z.number().min(0).max(8),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       const game = await prisma.game.findUnique({
@@ -334,12 +341,12 @@ export const ticTacToeRouter = createTRPCRouter({
         },
       });
       if (!game)
-        throw new TRPCError({ code: "NOT_FOUND", message: "Game not found" });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Game not found' });
 
       if (game.winner)
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Game is already finished",
+          code: 'BAD_REQUEST',
+          message: 'Game is already finished',
         });
 
       validateTurn(game, ctx.session.user.id, input);

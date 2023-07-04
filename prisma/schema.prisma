@@ -23,6 +23,7 @@ model Game {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
+    type    String?
     winner  String?
     turn    String?
     players User[]
