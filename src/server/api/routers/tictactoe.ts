@@ -370,6 +370,7 @@ export const ticTacToeRouter = createTRPCRouter({
           data: {
             winner,
             turn: undefined,
+            gameEnd: new Date(),
           },
         });
       }
@@ -385,6 +386,8 @@ export const ticTacToeRouter = createTRPCRouter({
     const games = await prisma.game.findMany({
       where: {
         winner: null,
+        gameEnd: null,
+        type: 'PVP',
         players: {
           some: {
             id: {
@@ -408,6 +411,7 @@ export const ticTacToeRouter = createTRPCRouter({
 
     // One user in the game, no winner
     return {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       games: games.filter((game) => game.players.length === 1),
     };
   }),

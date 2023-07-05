@@ -13,7 +13,7 @@ const Board = memo(
       {board.map((cell, i) => (
         <div
           id={String(i)}
-          className="mb-4 flex h-20 w-20 items-center justify-center rounded-xl border-2 border-white bg-transparent bg-white bg-opacity-0 duration-300 hover:bg-opacity-25"
+          className="mb-4 flex h-20 w-20 items-center justify-center rounded-xl border-2 border-white bg-transparent bg-white bg-opacity-0 text-white duration-300 hover:bg-opacity-25"
           key={'cell' + String(i)}
           onClick={() => {
             handleMove(i);

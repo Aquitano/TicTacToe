@@ -1,9 +1,25 @@
 import AuthShowcase from '@/components/authShowcase';
 import { api } from '@/utils/api';
+import { useSession } from 'next-auth/react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
+import { useCallback, useEffect } from 'react';
 
 export default function Home() {
+  const router = useRouter();
   const hello = api.example.hello.useQuery({ text: 'from the server!' });
+  const { data: sessionData } = useSession();
+
+  const redirect = useCallback(async () => {
+    await router.prefetch('/game');
+    await router.push('/game');
+  }, [router]);
+
+  useEffect(() => {
+    if (sessionData) {
+      void redirect();
+    }
+  }, [redirect, sessionData]);
 
   return (
     <>

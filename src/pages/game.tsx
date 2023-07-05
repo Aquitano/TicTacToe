@@ -28,8 +28,8 @@ export default function Game() {
     if (game === null) throw new Error('Error joining game');
 
     // Redirect to game page
-    await router.prefetch(`/game/${gameId}?strength=${newGameSettings}`);
-    await router.push(`/game/${gameId}?strength=${newGameSettings}`);
+    await router.prefetch(`/game/${gameId}`);
+    await router.push(`/game/${gameId}}`);
   };
 
   const createGame = api.game.createGame.useMutation();
@@ -43,8 +43,8 @@ export default function Game() {
       const gameId = game.id;
 
       // Redirect to game page
-      await router.prefetch(`/game/ai/${gameId}`);
-      await router.push(`/game/ai/${gameId}`);
+      await router.prefetch(`/game/ai/${gameId}?strength=${newGameSettings}`);
+      await router.push(`/game/ai/${gameId}?strength=${newGameSettings}`);
       return;
     }
 
