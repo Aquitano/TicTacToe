@@ -6,15 +6,15 @@ import { SessionProvider } from 'next-auth/react';
 import { type AppType } from 'next/app';
 
 const MyApp: AppType<{ session: Session | null }> = ({
-  Component,
-  pageProps: { session, ...pageProps },
+    Component,
+    pageProps: { session, ...pageProps },
 }) => {
-  return (
-    <SessionProvider session={session}>
-      <Toaster />
-      <Component {...pageProps} />
-    </SessionProvider>
-  );
+    return (
+        <SessionProvider session={session}>
+            <Toaster />
+            <Component {...pageProps} />
+        </SessionProvider>
+    );
 };
 
 export default api.withTRPC(MyApp);
