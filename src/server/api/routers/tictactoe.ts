@@ -1,5 +1,5 @@
 import { createTRPCRouter, protectedProcedure } from '@/server/api/trpc';
-import { checkWinner } from '@/utils/gameHelpers';
+import { checkWinnerByHistory } from '@/utils/gameHelpers';
 import type { Move } from '@prisma/client';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
@@ -326,17 +326,16 @@ export const ticTacToeRouter = createTRPCRouter({
 
             const move = await createMove(input, ctx.session.user.id);
 
-            const updatedGame = {
-                ...game,
-                moves: [
-                    ...game.moves,
-                    { playerID: ctx.session.user.id, position: input.position },
-                ],
-            } as Game & { moves: Move[] };
+            const updatedGame = [
+                ...game.moves,
+                {
+                    id: '1',
+                    playerID: ctx.session.user.id,
+                    position: input.position,
+                },
+            ];
 
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-expect-error
-            const winner = checkWinner(updatedGame);
+            const winner = checkWinnerByHistory(updatedGame);
             if (winner) {
                 await prisma.game.update({
                     where: {

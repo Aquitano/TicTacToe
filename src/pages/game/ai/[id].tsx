@@ -88,13 +88,32 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
         },
         [sessionData?.user?.id, toast],
     );
+    const handleCheckMove = useCallback(
+        (userId: string) => {
+            const gameEnd = checkGameEnd(moveHistoryRef.current);
+            console.log('gameEnd', gameEnd);
+            switch (gameEnd) {
+                case 'AI':
+                    handleGameEnd('AI', 'win');
+                    break;
+                case userId:
+                    handleGameEnd(userId, 'win');
+                    break;
+                case 'draw':
+                    handleGameEnd('', 'draw');
+                    break;
+                default:
+                    break;
+            }
+        },
+        [handleGameEnd],
+    );
     const handleMove = useCallback(
         (position: number, curTurn: 'AI' | 'Player' = 'Player') => {
             if (sessionData?.user?.id === undefined)
                 throw new Error('Session user id is undefined');
 
             if (curTurn === 'AI') {
-                setTurn('Player');
                 setBoard((prevBoard) => {
                     const newBoard = [...prevBoard];
 
@@ -111,15 +130,10 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
                         time: new Date(),
                     },
                 ]);
+
+                setTurn('Player');
             } else {
                 if (board[position] !== '') return;
-
-                // makeMove({
-                //   gameId,
-                //   position,
-                // });
-
-                setTurn('AI');
 
                 setBoard((prevBoard) => {
                     const newBoard = [...prevBoard];
@@ -137,51 +151,31 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
                         time: new Date(),
                     },
                 ]);
+                setTurn('AI');
             }
         },
         [board, sessionData?.user.id],
     );
-    const handleCheckMove = useCallback(
-        (userId: string) => {
-            const gameEnd = checkGameEnd(moveHistoryRef.current);
-            switch (gameEnd) {
-                case 'AI':
-                    handleGameEnd('AI', 'win');
-                    break;
-                case userId:
-                    handleGameEnd(userId, 'win');
-                    break;
-                case 'draw':
-                    handleGameEnd('', 'draw');
-                    break;
-                default:
-                    break;
-            }
-        },
-        [handleGameEnd],
-    );
 
     useEffect(() => {
-        if (turn === '') return;
-
-        // Check if user id is undefined
         if (sessionData?.user?.id === undefined) return;
 
-        handleCheckMove(sessionData?.user.id);
-    }, [
-        handleCheckMove,
-        handleGameEnd,
-        moveHistoryRef,
-        sessionData?.user?.id,
-        turn,
-    ]);
+        handleCheckMove(sessionData.user.id);
+    }, [moveHistory, sessionData?.user.id, handleCheckMove]);
 
     useEffect(() => {
-        if (turn === 'AI' && sessionData?.user?.id !== undefined) {
-            const aiMove = getMove(board);
-            handleMove(aiMove, 'AI');
-        }
-    }, [board, handleMove, sessionData?.user?.id, turn]);
+        if (turn === '' || turn === 'Player') return;
+        if (sessionData?.user?.id === undefined) return;
+        if (moveHistoryRef.current.length === 9) return;
+
+        const gameEnd = checkGameEnd(moveHistoryRef.current);
+        if (gameEnd) return;
+
+        console.log('making ai move', turn);
+
+        const aiMove = getMove(board, aiStrength);
+        handleMove(aiMove, 'AI');
+    }, [aiStrength, board, handleMove, sessionData?.user?.id, turn]);
 
     boardRef.current = board;
     moveHistoryRef.current = moveHistory;
