@@ -169,6 +169,13 @@ function validateGameCapacity(game: Game) {
 }
 
 export const ticTacToeRouter = createTRPCRouter({
+    /**
+     * Joins a game.
+     * @param {object} input - The input data for joining a game.
+     * @param {string} input.gameId - The ID of the game to join.
+     * @returns {Promise<object>} The updated game.
+     * @throws {TRPCError} If the game is not found or is full.
+     */
     joinGame: protectedProcedure
         .input(z.object({ gameId: z.string() }))
         .mutation(async ({ input, ctx }) => {
@@ -203,6 +210,12 @@ export const ticTacToeRouter = createTRPCRouter({
             };
         }),
 
+    /**
+     * Creates a game.
+     * @param {object} input - The input data for creating a game.
+     * @param {'AI'|'PVP'} input.type - The type of game to create.
+     * @returns {Promise<object>} The created game.
+     */
     createGame: protectedProcedure
         .input(
             z.object({
@@ -228,6 +241,13 @@ export const ticTacToeRouter = createTRPCRouter({
             };
         }),
 
+    /**
+     * Fetches a game.
+     * @param {object} input - The input data for fetching a game.
+     * @param {string} input.gameId - The ID of the game to fetch.
+     * @returns {Promise<object>} The fetched game.
+     * @throws {TRPCError} If the game is not found.
+     */
     getGame: protectedProcedure
         .input(z.object({ gameId: z.string() }))
         .query(async ({ input }) => {
@@ -262,6 +282,13 @@ export const ticTacToeRouter = createTRPCRouter({
             };
         }),
 
+    /**
+     * Fetches a game including moves.
+     * @param {object} input - The input data for fetching a game.
+     * @param {string} input.gameId - The ID of the game to fetch.
+     * @returns {Promise<object>} The fetched game.
+     * @throws {TRPCError} If the game is not found.
+     */
     getFullGame: protectedProcedure
         .input(z.object({ gameId: z.string() }))
         .query(async ({ input }) => {
@@ -277,6 +304,12 @@ export const ticTacToeRouter = createTRPCRouter({
             };
         }),
 
+    /**
+     * Fetches the moves of a game.
+     * @param {object} input - The input data for fetching the moves of a game.
+     * @param {string} input.gameId - The ID of the game to fetch the moves from.
+     * @returns {Promise<object>} The fetched moves.
+     */
     getMoves: protectedProcedure
         .input(z.object({ gameId: z.string() }))
         .query(async ({ input }) => {
@@ -293,6 +326,14 @@ export const ticTacToeRouter = createTRPCRouter({
             };
         }),
 
+    /**
+     * Makes a move in a game.
+     * @param {object} input - The input data for making a move.
+     * @param {string} input.gameId - The ID of the game to make a move in.
+     * @param {number} input.position - The position of the move.
+     * @returns {Promise<object>} The made move.
+     * @throws {TRPCError} If the game is not found, is already finished, or it's not the user's turn.
+     */
     makeMove: protectedProcedure
         .input(
             z.object({
@@ -356,6 +397,15 @@ export const ticTacToeRouter = createTRPCRouter({
             };
         }),
 
+    /**
+     * Makes an move in a AI game.
+     * @param {object} input - The input data for making an AI move.
+     * @param {string} input.gameId - The ID of the game to make a move in.
+     * @param {number} input.playerMove - The position of the player's move.
+     * @param {number} input.aiMove - The position of the AI's move.
+     * @returns {Promise<object>} The made moves.
+     * @throws {TRPCError} If the game is not found, is already finished, or it's not the user's turn.
+     */
     makeAiMove: protectedProcedure
         .input(
             z.object({
@@ -407,6 +457,10 @@ export const ticTacToeRouter = createTRPCRouter({
             };
         }),
 
+    /**
+     * Fetches open games.
+     * @returns {Promise<object>} The fetched open games.
+     */
     getOpenGames: protectedProcedure.query(async () => {
         const games = await prisma.game.findMany({
             where: {

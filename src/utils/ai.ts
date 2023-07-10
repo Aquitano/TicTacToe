@@ -15,22 +15,20 @@ export function getMove(board: Board, strength: number): number {
     const emptyIndices = getEmptyIndices(board);
 
     if (emptyIndices.length === 0) throw new Error('No empty indices');
+    if (strength < 1 || strength > 3) throw new Error('Invalid strength');
 
-    let index: number;
+    if (strength === 1) return getRandomInt(emptyIndices);
 
-    if (strength === 1) {
-        index = getRandomInt(emptyIndices);
-    } else if (strength === 2) {
-        index = getWinningMove(board, 'O', emptyIndices);
-        if (index === -1) index = getRandomInt(emptyIndices);
-    } else if (strength === 3) {
-        // TODO: Implement minimax algorithm
-        index = getRandomInt(emptyIndices);
-    } else {
-        throw new Error('Invalid strength');
-    }
+    const winningMove = getWinningMove(board, 'O', emptyIndices);
+    if (strength === 2)
+        return winningMove !== -1 ? winningMove : getRandomInt(emptyIndices);
 
-    // Check if index is a number also in emptyIndices
+    const opponentWinningMove = getWinningMove(board, 'X', emptyIndices);
+    if (opponentWinningMove !== -1) return opponentWinningMove;
+
+    const minimaxMove = minimax(board, emptyIndices.length, 'O');
+    const index = minimaxMove[0] * 3 + minimaxMove[1];
+
     if (!emptyIndices.includes(index)) throw new Error('Invalid index');
 
     return index;
@@ -85,6 +83,60 @@ function getWinningMove(
     return -1;
 }
 
+/* *** AI function that choice the best move *** */
+
+/* Function to heuristic evaluation of state. */
+function evaluate(state: Board) {
+    var score = 0;
+
+    if (checkWinnerByBoard(state) === 'O') {
+        score = +1;
+    } else if (checkWinnerByBoard(state) === 'X') {
+        score = -1;
+    } else {
+        score = 0;
+    }
+
+    return score;
+}
+
+function minimax(state: Board, depth: number, player: 'O' | 'X') {
+    let best: number[];
+
+    if (player === 'O') {
+        best = [-1, -1, -1000];
+    } else {
+        best = [-1, -1, 1000];
+    }
+
+    if (depth === 0 || checkWinnerByBoard(state) === 'O') {
+        const score = evaluate(state);
+        return [-1, -1, score];
+    }
+
+    getEmptyIndices(state).forEach((index) => {
+        const x = Math.floor(index / 3);
+        const y = index % 3;
+        state[x * 3 + y] = player;
+        const score = minimax(state, depth - 1, player === 'O' ? 'X' : 'O');
+        state[x * 3 + y] = '';
+
+        score[0] = x;
+        score[1] = y;
+
+        if (player === 'O') {
+            if (score[2] > best[2]) {
+                best = score;
+            }
+        } else {
+            if (score[2] < best[2]) {
+                best = score;
+            }
+        }
+    });
+
+    return best;
+}
 /**
  * Check if the game has ended.
  *
