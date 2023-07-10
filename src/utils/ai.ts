@@ -4,7 +4,7 @@ type InputCheckWinner = Parameters<typeof checkWinnerByHistory>[0];
 type Board = string[];
 
 /**
- * Get the next move for the AI.
+ * Determines the next move for the AI based on the current game board and AI strength level.
  *
  * @param {Board} board - The current game board.
  * @param {number} strength - The AI strength level (1-3).
@@ -15,43 +15,59 @@ export function getMove(board: Board, strength: number): number {
     const emptyIndices = getEmptyIndices(board);
 
     if (emptyIndices.length === 0) throw new Error('No empty indices');
-    if (strength < 1 || strength > 3) throw new Error('Invalid strength');
 
-    if (strength === 1) return getRandomInt(emptyIndices);
+    let index: number;
 
-    const winningMove = getWinningMove(board, 'O', emptyIndices);
-    if (strength === 2)
-        return winningMove !== -1 ? winningMove : getRandomInt(emptyIndices);
+    switch (strength) {
+        case 1:
+            index = getRandomInt(emptyIndices);
+            break;
+        case 2:
+            index = getWinningMove(board, 'O', emptyIndices);
+            if (index === -1) index = getRandomInt(emptyIndices);
+            break;
+        case 3:
+            if (emptyIndices.length === 9) {
+                index = getRandomInt(emptyIndices);
+                break;
+            }
+            // Check if the opponent has a winning move in the next turn
+            const opponentWinningMove = getWinningMove(
+                board,
+                'X',
+                emptyIndices,
+            );
+            if (opponentWinningMove !== -1) {
+                index = opponentWinningMove;
+                break;
+            }
 
-    const opponentWinningMove = getWinningMove(board, 'X', emptyIndices);
-    if (opponentWinningMove !== -1) return opponentWinningMove;
+            const minimaxMove = performMinimax(board, emptyIndices.length, 'O');
+            index = minimaxMove[0] * 3 + minimaxMove[1];
 
-    const minimaxMove = minimax(board, emptyIndices.length, 'O');
-    const index = minimaxMove[0] * 3 + minimaxMove[1];
+            break;
+        default:
+            throw new Error('Invalid strength');
+    }
 
+    // Check if index is a number also in emptyIndices
     if (!emptyIndices.includes(index)) throw new Error('Invalid index');
 
     return index;
 }
 
 /**
- * Get the indices of the empty cells on the board.
+ * Returns the indices of the empty cells on the game board.
  *
  * @param {Board} board - The current game board.
  * @returns {number[]} - The indices of the empty cells.
  */
 function getEmptyIndices(board: Board): number[] {
-    const indices: number[] = [];
-    for (let i = 0; i < board.length; i++) {
-        if (board[i] === '') {
-            indices.push(i);
-        }
-    }
-    return indices;
+    return board.flatMap((value, i) => (value === '' ? i : []));
 }
 
 /**
- * Get a random integer from an array.
+ * Returns a random integer from an array of integers.
  *
  * @param {number[]} array - The array to pick a random integer from.
  * @returns {number} - A random integer from the array.
@@ -61,7 +77,7 @@ function getRandomInt(array: number[]): number {
 }
 
 /**
- * Get the winning move for a player if it exists.
+ * Determines the winning move for a player, if it exists.
  *
  * @param {Board} board - The current game board.
  * @param {string} player - The player to check for a winning move ('X' or 'O').
@@ -73,35 +89,47 @@ function getWinningMove(
     player: string,
     emptyIndices: number[],
 ): number {
-    for (const index of emptyIndices) {
-        const tempBoard = [...board];
-        tempBoard[index] = player; // Place the player's mark temporarily
-        if (checkWinnerByBoard(tempBoard) === player) {
-            return index;
-        }
-    }
-    return -1;
+    return (
+        emptyIndices.find(
+            (index) =>
+                checkWinnerByBoard({ ...board, [index]: player }) === player,
+        ) ?? -1
+    );
 }
 
-/* *** AI function that choice the best move *** */
+/**
+ * Evaluates the game state and returns a score using a heuristic approach.
+ *
+ * @param {Board} state - The current game state.
+ * @returns {number} - The score of the game state.
+ */
+function evaluateGameState(state: Board): number {
+    const winner = checkWinnerByBoard(state);
 
-/* Function to heuristic evaluation of state. */
-function evaluate(state: Board) {
-    var score = 0;
-
-    if (checkWinnerByBoard(state) === 'O') {
-        score = +1;
-    } else if (checkWinnerByBoard(state) === 'X') {
-        score = -1;
-    } else {
-        score = 0;
+    if (winner === 'O') {
+        return 1;
     }
-
-    return score;
+    if (winner === 'X') {
+        return -1;
+    }
+    return 0;
 }
 
-function minimax(state: Board, depth: number, player: 'O' | 'X') {
-    let best: number[];
+/**
+ * Implements the Minimax algorithm to determine the best move for the AI.
+ *
+ * @param {Board} state - The current game state.
+ * @param {number} depth - The depth of the game tree.
+ * @param {'O' | 'X'} player - The current player.
+ * @returns {[number, number, number]} - The best move and score.
+ */
+function performMinimax(
+    state: Board,
+    depth: number,
+    player: 'O' | 'X',
+): [number, number, number] {
+    // best is an array [x, y, score]
+    let best: [number, number, number];
 
     if (player === 'O') {
         best = [-1, -1, -1000];
@@ -110,7 +138,7 @@ function minimax(state: Board, depth: number, player: 'O' | 'X') {
     }
 
     if (depth === 0 || checkWinnerByBoard(state) === 'O') {
-        const score = evaluate(state);
+        const score = evaluateGameState(state);
         return [-1, -1, score];
     }
 
@@ -118,7 +146,11 @@ function minimax(state: Board, depth: number, player: 'O' | 'X') {
         const x = Math.floor(index / 3);
         const y = index % 3;
         state[x * 3 + y] = player;
-        const score = minimax(state, depth - 1, player === 'O' ? 'X' : 'O');
+        const score = performMinimax(
+            state,
+            depth - 1,
+            player === 'O' ? 'X' : 'O',
+        );
         state[x * 3 + y] = '';
 
         score[0] = x;

@@ -91,7 +91,6 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
     const handleCheckMove = useCallback(
         (userId: string) => {
             const gameEnd = checkGameEnd(moveHistoryRef.current);
-            console.log('gameEnd', gameEnd);
             switch (gameEnd) {
                 case 'AI':
                     handleGameEnd('AI', 'win');
@@ -170,8 +169,6 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
 
         const gameEnd = checkGameEnd(moveHistoryRef.current);
         if (gameEnd) return;
-
-        console.log('making ai move', turn);
 
         const aiMove = getMove(board, aiStrength);
         handleMove(aiMove, 'AI');
