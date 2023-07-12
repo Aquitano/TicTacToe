@@ -173,11 +173,13 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
                 return;
 
             // Update the board
-            const symbol = move.playerID === sessionData?.user.id ? 'X' : 'O';
+            const symbol = move.playerId === sessionData?.user.id ? 'X' : 'O';
             newBoard[move.position] = symbol;
 
+            if (move.playerId === null) throw new Error('Player id is null');
+
             newMoveHistory.push({
-                player: move.playerID,
+                player: move.playerId,
                 position: move.position,
                 time: move.createdAt,
             });
@@ -232,12 +234,13 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
                                 Waiting for opponent...
                             </p>
                         )}
-                        {winnerInfo && (
-                            <p className="text-lg font-bold tracking-tight text-white sm:text-xl">
-                                {winningText}
-                            </p>
-                        )}
-
+                        <p
+                            className={`text-lg font-bold tracking-tight text-white sm:text-xl ${
+                                !winningText ? 'invisible' : ''
+                            }`}
+                        >
+                            {winningText}
+                        </p>
                         <p
                             className={`text-white ${
                                 !myTurn ? 'invisible' : ''

@@ -29,12 +29,6 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
 
     const [turn, setTurn] = useState<'AI' | 'Player' | ''>('');
 
-    useEffect(() => {
-        setAiStrength(Number(router.query.strength));
-        // Randomize who goes first
-        setTurn(Math.random() > 0.5 ? 'AI' : 'Player');
-    }, [router.query.strength]);
-
     const handleError = (error: { message: string }) => {
         toast({
             title: 'Uh oh! Something went wrong.',
@@ -47,10 +41,15 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
         required: true,
     });
 
-    const { mutate: makeMove, error: moveError } =
-        api.game.makeAiMove.useMutation({
-            onError: handleError,
-        });
+    const {
+        mutate: uploadMove,
+        error: moveError,
+        isLoading: isMoveLoading,
+    } = api.game.makeAiMove.useMutation({
+        onError: handleError,
+    });
+    const { data: gameData, isLoading: isGameLoading } =
+        api.game.getAiGame.useQuery({ gameId });
 
     useEffect(() => {
         // Reset the board
@@ -59,7 +58,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
     }, [moveError]);
 
     const handleGameEnd = useCallback(
-        (winnerId: string, status: 'draw' | 'win') => {
+        (winnerId: string, status: 'draw' | 'win', upload = true) => {
             if (status === 'draw') {
                 setWinningText("It's a draw!");
                 setTurn('');
@@ -67,6 +66,12 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
                     title: 'Game over!',
                     description: `It's a draw!`,
                 });
+                if (upload)
+                    uploadMove({
+                        gameId,
+                        status,
+                        moves: moveHistoryRef.current,
+                    });
             } else {
                 if (winnerId === sessionData?.user?.id) {
                     setWinningText('You won!');
@@ -75,6 +80,13 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
                         title: 'Game over!',
                         description: `You won!`,
                     });
+                    if (upload)
+                        uploadMove({
+                            gameId,
+                            status,
+                            moves: moveHistoryRef.current,
+                            winner: sessionData.user.id,
+                        });
                 } else {
                     setWinningText('You lost!');
                     setTurn('');
@@ -83,10 +95,17 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
                         description: `You lost!`,
                         variant: 'destructive',
                     });
+                    if (upload)
+                        uploadMove({
+                            gameId,
+                            status,
+                            moves: moveHistoryRef.current,
+                            winner: 'AI',
+                        });
                 }
             }
         },
-        [sessionData?.user?.id, toast],
+        [gameId, sessionData?.user.id, toast, uploadMove],
     );
     const handleCheckMove = useCallback(
         (userId: string) => {
@@ -111,6 +130,8 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
         (position: number, curTurn: 'AI' | 'Player' = 'Player') => {
             if (sessionData?.user?.id === undefined)
                 throw new Error('Session user id is undefined');
+
+            if (winningText !== '') return;
 
             if (curTurn === 'AI') {
                 setBoard((prevBoard) => {
@@ -153,14 +174,72 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
                 setTurn('AI');
             }
         },
-        [board, sessionData?.user.id],
+        [board, sessionData?.user.id, winningText],
     );
 
     useEffect(() => {
         if (sessionData?.user?.id === undefined) return;
 
+        const newMoveHistory: {
+            player: string;
+            position: number;
+            time: /* eslint-disable @typescript-eslint/no-unsafe-member-access */ Date;
+        }[] = [];
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const newBoard: string[] = Array(BOARD_SIZE).fill('');
+        // Update the board
+        gameData?.game?.moves.forEach((move) => {
+            const player =
+                move.playerType === 'ai' ? 'AI' : sessionData.user.id;
+            newMoveHistory.push({
+                player: player,
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                position: move.position,
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                time: move.createdAt,
+            });
+
+            newBoard[move.position] = player === 'AI' ? 'O' : 'X';
+        });
+
+        setMoveHistory(newMoveHistory);
+        setBoard(newBoard);
+
+        console.log('Initial board loaded');
+
+        setAiStrength(Number(router.query.strength));
+        if (gameData?.game?.gameEnd) {
+            if (gameData?.game?.winner) {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                handleGameEnd(gameData.game.winner, 'win', false);
+            } else {
+                handleGameEnd('', 'draw', false);
+            }
+            return;
+        }
+
+        // Randomize who goes first
+        setTurn(Math.random() > 0.5 ? 'AI' : 'Player');
+    }, [
+        gameData?.game,
+        sessionData?.user?.id,
+        handleGameEnd,
+        router.query.strength,
+    ]);
+
+    useEffect(() => {
+        if (sessionData?.user?.id === undefined) return;
+        if (gameData?.game?.gameEnd) return;
+
         handleCheckMove(sessionData.user.id);
-    }, [moveHistory, sessionData?.user.id, handleCheckMove]);
+    }, [
+        moveHistory,
+        sessionData?.user.id,
+        handleCheckMove,
+        gameId,
+        gameData?.game?.gameEnd,
+    ]);
 
     useEffect(() => {
         if (turn === '' || turn === 'Player') return;
@@ -170,9 +249,26 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
         const gameEnd = checkGameEnd(moveHistoryRef.current);
         if (gameEnd) return;
 
+        if (isGameLoading) return;
+        if (isMoveLoading) return;
+
+        if (gameData?.game?.gameEnd) return;
+
+        console.log('AI turn');
+
         const aiMove = getMove(board, aiStrength);
         handleMove(aiMove, 'AI');
-    }, [aiStrength, board, handleMove, sessionData?.user?.id, turn]);
+    }, [
+        aiStrength,
+        board,
+        gameData?.game?.gameEnd,
+        handleMove,
+        isGameLoading,
+        isMoveLoading,
+        sessionData?.user?.id,
+        turn,
+        winningText,
+    ]);
 
     boardRef.current = board;
     moveHistoryRef.current = moveHistory;
@@ -194,11 +290,13 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
                         <p className="text-lg font-bold tracking-tight text-white sm:text-xl">
                             {gameId}, AI Strength: {aiStrength}
                         </p>
-                        {winningText && (
-                            <p className="text-lg font-bold tracking-tight text-white sm:text-xl">
-                                {winningText}
-                            </p>
-                        )}
+                        <p
+                            className={`text-lg font-bold tracking-tight text-white sm:text-xl ${
+                                !winningText ? 'invisible' : ''
+                            }`}
+                        >
+                            {winningText}
+                        </p>
                         <p
                             className={`text-white ${
                                 turn === 'Player' ? '' : 'invisible'

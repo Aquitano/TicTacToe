@@ -47,7 +47,7 @@ async function fetchGame(gameId: string): Promise<Game | null> {
 async function fetchFullGame(gameId: string): Promise<
     | (Game & {
           moves: Array<{
-              playerID: string;
+              playerId: string | null;
               position: number;
               id: string;
               createdAt: Date;
@@ -70,7 +70,7 @@ async function fetchFullGame(gameId: string): Promise<
             },
             moves: {
                 select: {
-                    playerID: true,
+                    playerId: true,
                     position: true,
                     id: true,
                     createdAt: true,
@@ -143,6 +143,46 @@ async function createMove(
 }
 
 /**
+ * Creates a move in a ai game.
+ *
+ * @param {string} gameId - The ID of the game.
+ * @param {string} player - The ID of the player.
+ * @param {number} position - The position of the move.
+ * @param {string} playerType - The type of the player.
+ * @returns {Promise<Move>} The created move.
+ */
+async function createMoveAi(
+    gameId: string,
+    position: number,
+    playerType: 'human' | 'ai',
+    player?: string,
+): Promise<Move> {
+    console.log('createMoveAi', gameId, position, playerType, player);
+    if (playerType === 'human') {
+        return await prisma.move.create({
+            data: {
+                AiGame: {
+                    connect: { id: gameId },
+                },
+                player: {
+                    connect: { id: player },
+                },
+                position: position,
+            },
+        });
+    }
+    return await prisma.move.create({
+        data: {
+            AiGame: {
+                connect: { id: gameId },
+            },
+            position: position,
+            playerType: playerType,
+        },
+    });
+}
+
+/**
  * Changes the turn in the game.
  * @param {Game} game - The game to update.
  * @param {string} gameId - The ID of the game.
@@ -166,6 +206,35 @@ async function changeTurn(game: Game, gameId: string) {
 function validateGameCapacity(game: Game) {
     if (game.players.length >= 2)
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Game is full' });
+}
+
+async function finishAiGame(
+    winner: string | null,
+    gameId: string,
+    status: 'win' | 'draw' | 'lose',
+) {
+    if (status === 'win') {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        await prisma.aiGame.update({
+            where: {
+                id: gameId,
+            },
+            data: {
+                winner: winner,
+                gameEnd: new Date(),
+            },
+        });
+    } else {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        await prisma.aiGame.update({
+            where: {
+                id: gameId,
+            },
+            data: {
+                gameEnd: new Date(),
+            },
+        });
+    }
 }
 
 export const ticTacToeRouter = createTRPCRouter({
@@ -223,6 +292,24 @@ export const ticTacToeRouter = createTRPCRouter({
             }),
         )
         .mutation(async ({ input, ctx }) => {
+            if (input.type === 'AI') {
+                return {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                    game: await prisma.aiGame.create({
+                        data: {
+                            player: {
+                                connect: {
+                                    id: ctx.session.user.id,
+                                },
+                            },
+                        },
+                        select: {
+                            id: true,
+                        },
+                    }),
+                };
+            }
+
             return {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
                 game: await prisma.game.create({
@@ -232,7 +319,6 @@ export const ticTacToeRouter = createTRPCRouter({
                                 id: ctx.session.user.id,
                             },
                         },
-                        type: input.type,
                     },
                     select: {
                         id: true,
@@ -278,6 +364,30 @@ export const ticTacToeRouter = createTRPCRouter({
             }
 
             return {
+                game,
+            };
+        }),
+
+    getAiGame: protectedProcedure
+        .input(z.object({ gameId: z.string() }))
+        .query(async ({ input }) => {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            const game = await prisma.aiGame.findUnique({
+                where: { id: input.gameId },
+                include: {
+                    player: true,
+                    moves: true,
+                },
+            });
+
+            if (!game)
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Game not found',
+                });
+
+            return {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 game,
             };
         }),
@@ -367,14 +477,23 @@ export const ticTacToeRouter = createTRPCRouter({
 
             const move = await createMove(input, ctx.session.user.id);
 
-            const updatedGame = [
-                ...game.moves,
-                {
+            const updatedGame = game.moves
+                .map((move) => ({
+                    id: move.id,
+                    createdAt: move.createdAt,
+                    position: move.position,
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    playerId: move.playerId,
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    playerType: move.playerType,
+                }))
+                .concat({
                     id: '1',
-                    playerID: ctx.session.user.id,
+                    createdAt: new Date(),
                     position: input.position,
-                },
-            ];
+                    playerId: ctx.session.user.id,
+                    playerType: 'human',
+                });
 
             const winner = checkWinnerByHistory(updatedGame);
             if (winner) {
@@ -398,7 +517,7 @@ export const ticTacToeRouter = createTRPCRouter({
         }),
 
     /**
-     * Makes an move in a AI game.
+     * Add moves from ai game to database
      * @param {object} input - The input data for making an AI move.
      * @param {string} input.gameId - The ID of the game to make a move in.
      * @param {number} input.playerMove - The position of the player's move.
@@ -410,51 +529,60 @@ export const ticTacToeRouter = createTRPCRouter({
         .input(
             z.object({
                 gameId: z.string(),
-                playerMove: z.number().min(0).max(8),
-                aiMove: z.number().min(0).max(8),
+                moves: z.array(
+                    z.object({
+                        player: z.string(),
+                        position: z.number().min(0).max(8),
+                        time: z.date(),
+                    }),
+                ),
+                winner: z.string().optional(),
+                status: z.enum(['win', 'draw']),
             }),
         )
         .mutation(async ({ input, ctx }) => {
-            const game = await prisma.game.findUnique({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            const game = await prisma.aiGame.findUnique({
                 where: {
                     id: input.gameId,
                 },
                 include: {
                     moves: true,
-                    players: true,
+                    player: true,
                 },
             });
+
             if (!game)
                 throw new TRPCError({
                     code: 'NOT_FOUND',
                     message: 'Game not found',
                 });
 
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             if (game.winner)
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'Game is already finished',
                 });
 
-            validateTurn(game, ctx.session.user.id, {
-                gameId: input.gameId,
-                position: input.playerMove,
-            });
+            for await (const move of input.moves) {
+                if (move.player === ctx.session.user.id) {
+                    await createMoveAi(
+                        input.gameId,
+                        move.position,
+                        'human',
+                        ctx.session.user.id,
+                    );
+                } else {
+                    await createMoveAi(input.gameId, move.position, 'ai', 'AI');
+                }
+            }
 
-            const playerMove = await createMove(
-                { gameId: input.gameId, position: input.playerMove },
-                ctx.session.user.id,
+            await finishAiGame(
+                input.winner ? input.winner : null,
+                input.gameId,
+                input.status,
             );
-
-            const aiMove = await createMove(
-                { gameId: input.gameId, position: input.aiMove },
-                'AI',
-            );
-
-            return {
-                playerMove,
-                aiMove,
-            };
         }),
 
     /**
@@ -466,7 +594,6 @@ export const ticTacToeRouter = createTRPCRouter({
             where: {
                 winner: null,
                 gameEnd: null,
-                type: 'PVP',
                 players: {
                     some: {
                         id: {

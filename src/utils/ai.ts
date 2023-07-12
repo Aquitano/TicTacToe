@@ -31,6 +31,14 @@ export function getMove(board: Board, strength: number): number {
                 index = getRandomInt(emptyIndices);
                 break;
             }
+
+            // Check if the AI has a winning move in the next turn
+            const aiWinningMove = getWinningMove(board, 'O', emptyIndices);
+            if (aiWinningMove !== -1) {
+                index = aiWinningMove;
+                break;
+            }
+
             // Check if the opponent has a winning move in the next turn
             const opponentWinningMove = getWinningMove(
                 board,
@@ -182,6 +190,8 @@ export function checkGameEnd(
         id: String(index),
         playerID: move.player,
         position: move.position,
+        playerId: move.player,
+        playerType: move.player,
     }));
 
     const winner = checkWinnerByHistory(input);

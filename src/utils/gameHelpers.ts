@@ -19,12 +19,13 @@ const winningCombinations = [
  * @returns {(string | undefined)} The ID of the winner, or undefined if the game is not over.
  */
 export function checkWinnerByHistory(
-    moves: Omit<Move, 'gameId' | 'createdAt'>[],
+    moves: Omit<Move, 'gameId' | 'createdAt' | 'aiGameId'>[],
 ): string | undefined {
     // Create a game board
     const board = Array(9).fill(null);
     moves.forEach((move) => {
-        board[move.position] = move.playerID;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        board[move.position] = move.playerId;
     });
 
     // Check for a winner
