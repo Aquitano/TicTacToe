@@ -3,7 +3,6 @@ import { useSession } from 'next-auth/react';
 
 type Game = RouterOutputs['game']['getOpenGames']['games'][number];
 
-// TODO
 const OpenGames = ({
     handleJoinGame,
     setOpen,
@@ -40,12 +39,7 @@ const OpenGames = ({
             >
                 Hide Open Games
             </button>
-            <div className="flex flex-col items-center gap-2">
-                {/* <p className="text-center text-2xl text-white">
-          {JSON.stringify(openGames)}
-        </p> */}
-                {games}
-            </div>
+            <div className="flex flex-col items-center gap-2">{games}</div>
         </>
     );
 };

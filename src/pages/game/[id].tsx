@@ -14,6 +14,9 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 const Board = dynamic(() => import('@/components/board'), {
     loading: () => <p>Loading...</p>,
 });
+const Rematch = dynamic(() => import('@/components/rematch'), {
+    loading: () => <p>Loading...</p>,
+});
 
 const BOARD_SIZE = 9;
 const MAX_POSITION = 8;
@@ -236,7 +239,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
                         )}
                         <p
                             className={`text-lg font-bold tracking-tight text-white sm:text-xl ${
-                                !winningText ? 'invisible' : ''
+                                !winnerInfo ? 'invisible' : ''
                             }`}
                         >
                             {winningText}
@@ -269,6 +272,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
                             </div>
                         </div>
                         <Separator className="mt-16" />
+                        {winnerInfo && <Rematch newGameSettings={0} />}
                         <Link
                             href="/game"
                             className="text-lg font-bold tracking-tight text-white sm:text-xl"

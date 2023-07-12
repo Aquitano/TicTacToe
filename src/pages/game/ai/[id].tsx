@@ -12,6 +12,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Rematch from '../../../components/rematch';
 
 const BOARD_SIZE = 9;
 
@@ -321,6 +322,9 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
                             </div>
                         </div>
                         <Separator className="mt-16" />
+                        {winningText !== '' && (
+                            <Rematch newGameSettings={aiStrength} />
+                        )}
                         <Link
                             href="/game"
                             className="text-lg font-bold tracking-tight text-white sm:text-xl"
