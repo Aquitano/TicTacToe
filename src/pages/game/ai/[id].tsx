@@ -16,6 +16,12 @@ import Rematch from '../../../components/rematch';
 
 const BOARD_SIZE = 9;
 
+/**
+ * The main ai game page component.
+ * @param {object} props - The component props.
+ * @param {string} props.gameId - The ID of the game.
+ * @returns {JSX.Element} The rendered component.
+ */
 const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
     const router = useRouter();
     const { toast } = useToast();
@@ -30,6 +36,11 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
 
     const [turn, setTurn] = useState<'AI' | 'Player' | ''>('');
 
+    /**
+     * Handles errors by showing a toast.
+     * @param {object} error - The error object.
+     * @param {string} error.message - The error message.
+     */
     const handleError = (error: { message: string }) => {
         toast({
             title: 'Uh oh! Something went wrong.',
@@ -52,12 +63,21 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
     const { data: gameData, isLoading: isGameLoading } =
         api.game.getAiGame.useQuery({ gameId });
 
+    /**
+     * Resets the board when there's a move error.
+     */
     useEffect(() => {
         // Reset the board
         setBoard(Array(BOARD_SIZE).fill(''));
         setMoveHistory([]);
     }, [moveError]);
 
+    /**
+     * Handles the end of the game.
+     * @param {string} winnerId - The ID of the winner.
+     * @param {'draw' | 'win'} status - The status of the game.
+     * @param {boolean} upload - Whether to upload the game result.
+     */
     const handleGameEnd = useCallback(
         (winnerId: string, status: 'draw' | 'win', upload = true) => {
             if (status === 'draw') {
@@ -108,6 +128,11 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
         },
         [gameId, sessionData?.user.id, toast, uploadMove],
     );
+
+    /**
+     * Checks if the game has ended after a move.
+     * @param {string} userId - The ID of the user.
+     */
     const handleCheckMove = useCallback(
         (userId: string) => {
             const gameEnd = checkGameEnd(moveHistoryRef.current);
@@ -127,6 +152,12 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
         },
         [handleGameEnd],
     );
+
+    /**
+     * Handles a move by the current player or the AI.
+     * @param {number} position - The position of the move.
+     * @param {'AI' | 'Player'} curTurn - The current turn.
+     */
     const handleMove = useCallback(
         (position: number, curTurn: 'AI' | 'Player' = 'Player') => {
             if (sessionData?.user?.id === undefined)
@@ -178,6 +209,9 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
         [board, sessionData?.user.id, winningText],
     );
 
+    /**
+     * Initializes the game board and move history based on the game data.
+     */
     useEffect(() => {
         if (sessionData?.user?.id === undefined) return;
 
@@ -229,6 +263,9 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
         router.query.strength,
     ]);
 
+    /**
+     * Checks if the game has ended after every move.
+     */
     useEffect(() => {
         if (sessionData?.user?.id === undefined) return;
         if (gameData?.game?.gameEnd) return;
@@ -242,6 +279,9 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
         gameData?.game?.gameEnd,
     ]);
 
+    /**
+     * Handles the AI's turn.
+     */
     useEffect(() => {
         if (turn === '' || turn === 'Player') return;
         if (sessionData?.user?.id === undefined) return;

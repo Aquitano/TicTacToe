@@ -10,6 +10,10 @@ const OpenGames = dynamic(() => import('@/components/openGames'), {
     loading: () => <p>Loading...</p>,
 });
 
+/**
+ * The main game component.
+ * @returns {JSX.Element} The rendered component.
+ */
 export default function Game() {
     const [newGameSettings, setNewGameSettings] = useState<number>(0);
     const router = useRouter();
@@ -20,6 +24,12 @@ export default function Game() {
     const input = useRef<HTMLInputElement>(null);
 
     const joinGame = api.game.joinGame.useMutation();
+    const createGame = api.game.createGame.useMutation();
+
+    /**
+     * Handles joining a game.
+     * @param {string} gameId - The ID of the game.
+     */
     const handleJoinGame = async (gameId: string) => {
         confirm('Join game ' + gameId);
 
@@ -32,7 +42,9 @@ export default function Game() {
         await router.push(`/game/${gameId}`);
     };
 
-    const createGame = api.game.createGame.useMutation();
+    /**
+     * Handles creating a game.
+     */
     const handleCreateGame = async () => {
         if (sessionData?.user?.id === undefined)
             throw new Error('Session user id is undefined');

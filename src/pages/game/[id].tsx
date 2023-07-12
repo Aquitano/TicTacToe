@@ -22,6 +22,12 @@ const BOARD_SIZE = 9;
 const MAX_POSITION = 8;
 const FETCH_INTERVAL = 1000;
 
+/**
+ * The main game page component.
+ * @param {object} props - The component props.
+ * @param {string} props.gameId - The ID of the game.
+ * @returns {JSX.Element} The rendered component.
+ */
 const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
     const { toast } = useToast();
     const [board, setBoard] = useState<string[]>(Array(BOARD_SIZE).fill(''));
@@ -36,6 +42,11 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
     const boardRef = useRef(board);
     const moveHistoryRef = useRef(moveHistory);
 
+    /**
+     * Handles errors by showing a toast and refetching the data.
+     * @param {object} error - The error object.
+     * @param {string} error.message - The error message.
+     */
     const handleError = (error: { message: string }) => {
         toast({
             title: 'Uh oh! Something went wrong.',
@@ -77,6 +88,9 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
             onError: handleError,
         });
 
+    /**
+     * Resets the board and refetches the data when there's a move error.
+     */
     useEffect(() => {
         // Reset the board
         setBoard(Array(BOARD_SIZE).fill(''));
@@ -86,6 +100,10 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         void refetch();
     }, [moveError, refetch]);
 
+    /**
+     * Handles a move by the current player.
+     * @param {number} position - The position of the move.
+     */
     const handleMove = useCallback(
         (position: number) => {
             if (sessionData?.user?.id === undefined)
@@ -110,6 +128,12 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         },
         [board, gameId, makeMove, myTurn, sessionData?.user?.id],
     );
+
+    /**
+     * Handles the end of the game.
+     * @param {string} winnerId - The ID of the winner.
+     * @param {'draw' | 'win'} status - The status of the game.
+     */
     const handleGameEnd = useCallback(
         (winnerId: string, status: 'draw' | 'win') => {
             setWinner(winnerId);
@@ -142,6 +166,9 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         [sessionData?.user?.id, toast],
     );
 
+    /**
+     * Checks if the game has started or ended.
+     */
     useEffect(() => {
         if (!gameStatus) return;
         // Check if the game has started
@@ -156,6 +183,9 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         setMyTurn(gameStatus?.game.turn === sessionData?.user?.id);
     }, [gameStatus, sessionData]);
 
+    /**
+     * Updates the board and move history based on the full game data.
+     */
     useEffect(() => {
         if (!fullGame) return;
 
@@ -212,8 +242,10 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         void refetch();
     }, [lastMove, fullGame, sessionData, refetch, handleGameEnd]);
 
+    // Update refs
     boardRef.current = board;
     moveHistoryRef.current = moveHistory;
+
     return (
         <>
             <Head>

@@ -80,6 +80,11 @@ async function fetchFullGame(gameId: string): Promise<
     });
 }
 
+/**
+ * Checks if the game is ready to start.
+ * @param {Game} game - The game to check.
+ * @returns {boolean} True if the game is ready to start, false otherwise.
+ */
 function isGameReadyToStart(game: Game) {
     return game.players.length === 2 && !game.turn;
 }
@@ -208,6 +213,12 @@ function validateGameCapacity(game: Game) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Game is full' });
 }
 
+/**
+ * Finishes an AI game.
+ * @param {string | null} winner - The ID of the winner.
+ * @param {string} gameId - The ID of the game.
+ * @param {'win' | 'draw' | 'lose'} status - The status of the game.
+ */
 async function finishAiGame(
     winner: string | null,
     gameId: string,
@@ -368,6 +379,13 @@ export const ticTacToeRouter = createTRPCRouter({
             };
         }),
 
+    /**
+     * Fetches a game including moves.
+     * @param {object} input - The input data for fetching a game.
+     * @param {string} input.gameId - The ID of the game to fetch.
+     * @returns {Promise<object>} The fetched game.
+     * @throws {TRPCError} If the game is not found.
+     */
     getAiGame: protectedProcedure
         .input(z.object({ gameId: z.string() }))
         .query(async ({ input }) => {
@@ -613,9 +631,7 @@ export const ticTacToeRouter = createTRPCRouter({
             },
         });
 
-        console.log(games);
-
-        // One user in the game, no winner
+        // Only return when one user is in the game
         return {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             games: games.filter((game) => game.players.length === 1),

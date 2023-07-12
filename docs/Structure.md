@@ -17,11 +17,11 @@ The application follows a standard folder structure for a Next.js project. Here'
 ## Details
 
 ### Pages
-- `_app.tsx`: This is the custom App component. It allows to override the default App component provided by Next.js. It's used to maintain layout or state between page changes.
+- `_app.tsx`: This is the custom App component. It allows overriding the default App component provided by Next.js. It's used to maintain layout or state between page changes.
 - `index.tsx`: This is the home page of the application.
-- `game.tsx`: This is the main game page where users can create a new game or join an existing game.
-- `game/[id].tsx`: This page corresponds to a specific game identified by its id.
-- `game/ai/[id].tsx`: This page corresponds to a specific AI game identified by its id.
+- `game.tsx`: This is the main game page, where users can create a new game or join an existing game.
+- `game/[id].tsx`: This page corresponds to a specific game, identified by its id.
+- `game/ai/[id].tsx`: This page corresponds to a specific AI game, identified by its id.
 
 ## Routers
 - `tictactoe.ts`: The router for the TicTacToe game procedures.

@@ -2,7 +2,7 @@
 This document provides an overview of the tRPC procedures used in the application. The procedures are divided into two main files: `tictactoe.ts` and `user.ts`.
 
 ## tictactoe.ts
-This file contains procedures related to the Tic Tac Toe game. It includes procedures for creating and joining games, making moves, and fetching game data.
+This file contains procedures related to the TicTacToe game. It includes procedures for creating and joining games, making moves, and fetching game data.
 
 ### Procedures
 - `joinGame`: Joins a game. Throws an error if the game is not found or is full.
