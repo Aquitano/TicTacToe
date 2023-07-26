@@ -80,8 +80,8 @@ dependencies:
 
 devDependencies:
   '@next/bundle-analyzer':
-    specifier: ^13.4.9
-    version: 13.4.9
+    specifier: ^13.4.12
+    version: 13.4.12
   '@types/eslint':
     specifier: ^8.44.0
     version: 8.44.0
@@ -468,8 +468,8 @@ packages:
       next-auth: 4.22.1(next@13.4.9)(react-dom@18.2.0)(react@18.2.0)
     dev: false
 
-  /@next/bundle-analyzer@13.4.9:
-    resolution: {integrity: sha512-T/nSgXmhAx8Wy2qPGr9P3AcLwlFCMbA7DuYNCm7BdF10Sk74S0bJ1b3ygq+306dBwKRWV5Lj80sYzWzZ5/rwgQ==}
+  /@next/bundle-analyzer@13.4.12:
+    resolution: {integrity: sha512-WjeNsoWGAkbn7XU2jBVkaI7/DVfg2mzRF7spTohsknnwQ/dDgSHlgZj80mt1/SHYconWjZSY0KIWFaxR4/mNsA==}
     dependencies:
       webpack-bundle-analyzer: 4.7.0
     transitivePeerDependencies:
