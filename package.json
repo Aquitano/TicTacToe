@@ -34,7 +34,7 @@
         "superjson": "1.13.1",
         "tailwind-merge": "^1.14.0",
         "tailwindcss-animate": "^1.0.7",
-        "zod": "^3.22.3"
+        "zod": "^3.22.4"
     },
     "devDependencies": {
         "@next/bundle-analyzer": "^13.4.18",
