@@ -7,8 +7,11 @@ const AuthShowcase = memo(() => {
     const { data: sessionData } = useSession();
 
     const { data: secretMessage } = api.example.getSecretMessage.useQuery(
-        undefined, // no input
-        { enabled: sessionData?.user !== undefined },
+        undefined,
+        {
+            enabled: sessionData?.user !== undefined,
+            queryKey: ['example.getSecretMessage', undefined],
+        },
     );
 
     return (
