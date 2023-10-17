@@ -64,6 +64,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
             id: winner ?? '',
         },
         {
+            queryKey: ['user.getUserById', { id: winner ?? '' }],
             enabled: winner !== null,
         },
     );
@@ -74,6 +75,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         {
             refetchInterval: FETCH_INTERVAL,
             enabled: !gameStarted && winner === null,
+            queryKey: ['game.getGame', { gameId }],
         },
     );
     const { data: fullGame, refetch } = api.game.getFullGame.useQuery(
@@ -81,6 +83,7 @@ const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
         {
             refetchInterval: FETCH_INTERVAL,
             enabled: gameStarted && winner === null,
+            queryKey: ['game.getFullGame', { gameId }],
         },
     );
     const { mutate: makeMove, error: moveError } =

@@ -22,7 +22,7 @@ const BOARD_SIZE = 9;
  * @param {string} props.gameId - The ID of the game.
  * @returns {JSX.Element} The rendered component.
  */
-const GamePage: NextPage<{ gameId: string }> = ({ gameId: gameId }) => {
+const GamePage: NextPage<{ gameId: string }> = ({ gameId }) => {
     const router = useRouter();
     const { toast } = useToast();
     const [board, setBoard] = useState<string[]>(Array(BOARD_SIZE).fill(''));
