@@ -57,11 +57,6 @@
         "initVersion": "7.14.1"
     },
     "engines": {
-        "node": "18.x"
-    },
-    "pnpm": {
-        "overrides": {
-            "@babel/traverse@<7.23.2": ">=7.23.2"
-        }
+        "node": "22.x"
     }
 }
