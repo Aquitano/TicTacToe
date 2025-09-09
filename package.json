@@ -25,7 +25,7 @@
         "class-variance-authority": "^0.7.0",
         "clsx": "^2.1.1",
         "lucide-react": "^0.287.0",
-        "million": "^2.6.4",
+        "million": "^3.1.11",
         "next": "^15.5.2",
         "next-auth": "^4.24.11",
         "prisma": "^5.7.0",
