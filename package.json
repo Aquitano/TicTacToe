@@ -37,7 +37,7 @@
         "zod": "^3.25.76"
     },
     "devDependencies": {
-        "@next/bundle-analyzer": "^15.5.2",
+        "@next/bundle-analyzer": "^16.0.1",
         "@types/eslint": "^8.44.6",
         "@types/node": "^24.7.0",
         "@types/react": "^18.2.28",
